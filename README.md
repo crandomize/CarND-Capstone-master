@@ -1,69 +1,68 @@
-This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
+# Self Driving Car - Capstone Project 
 
-### Native Installation
+Final project of the Udacity Self-Driving Car Engineer Nanodegree.  In this project we need to build different ROS nodes to implement the autonomous vehicle systems
 
-* Be sure that your workstation is running Ubuntu 16.04 Xenial Xerus or Ubuntu 14.04 Trusty Tahir. [Ubuntu downloads can be found here](https://www.ubuntu.com/download/desktop).
-* If using a Virtual Machine to install Ubuntu, use the following configuration as minimum:
-  * 2 CPU
-  * 2 GB system memory
-  * 25 GB of free hard drive space
 
-  The Udacity provided virtual machine has ROS and Dataspeed DBW already installed, so you can skip the next two steps if you are using this.
+## Architecture
 
-* Follow these instructions to install ROS
-  * [ROS Kinetic](http://wiki.ros.org/kinetic/Installation/Ubuntu) if you have Ubuntu 16.04.
-  * [ROS Indigo](http://wiki.ros.org/indigo/Installation/Ubuntu) if you have Ubuntu 14.04.
-* [Dataspeed DBW](https://bitbucket.org/DataspeedInc/dbw_mkz_ros)
-  * Use this option to install the SDK on a workstation that already has ROS installed: [One Line SDK Install (binary)](https://bitbucket.org/DataspeedInc/dbw_mkz_ros/src/81e63fcc335d7b64139d7482017d6a97b405e250/ROS_SETUP.md?fileviewer=file-view-default)
-* Download the [Udacity Simulator](https://github.com/udacity/CarND-Capstone/releases/tag/v1.2).
+There are 3 areas implemented:
 
-### Docker Installation
-[Install Docker](https://docs.docker.com/engine/installation/)
+- waypoint updater:  Publish a set of waypoints ahead of the vehicle with correct target velocities.  Velocities should be calculated based on maximum targets and traffic lights, adjusting them to road conditions, like stopping if red traffic light is found, etc.
+- traffic light detection: Images of cameras from simulator are received in real-time.  Status of the traffic light (red, yellow, green lights) should be detected in order to adjust the velocities on previous point.
+- DBW control: Development of the controllers for the thorttle, brake and steering commands in order to follow waypoints and velocities to those provided by below points.
 
-Build the docker container
-```bash
-docker build . -t capstone
-```
+### Traffic Light detection.
 
-Run the docker file
-```bash
-docker run -p 4567:4567 -v $PWD:/capstone -v /tmp/log:/root/.ros/ --rm -it capstone
-```
+Traffic light status detection is based on image processing, using color and images trasformations with different filters in order to check if existing color ranges are in the provided images.
+These images are published in the "/traffic_waypoint" topic.
 
-### Usage
+Below is an example to detect one of the colors (yellow color)
 
-1. Clone the project repository
-```bash
-git clone https://github.com/udacity/CarND-Capstone.git
-```
+[image1]: ./imgs/traffic_light.png "Image"
+[image2]: ./imgs/traffic_light_blue.png "Image"
+[image3]: ./imgs/traffic_light_detection.png "Image"
 
-2. Install python dependencies
-```bash
-cd CarND-Capstone
-pip install -r requirements.txt
-```
-3. Make and run styx
-```bash
-cd ros
-catkin_make
-source devel/setup.sh
-roslaunch launch/styx.launch
-```
-4. Run the simulator
+This is the original frame imageobtained from the camera
+![Example 1][image1]
 
-### Real world testing
-1. Download [training bag](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view?usp=sharing) that was recorded on the Udacity self-driving car (a bag demonstraing the correct predictions in autonomous mode can be found [here](https://drive.google.com/open?id=0B2_h37bMVw3iT0ZEdlF4N01QbHc))
-2. Unzip the file
-```bash
-unzip traffic_light_bag_files.zip
-```
-3. Play the bag file
-```bash
-rosbag play -l traffic_light_bag_files/loop_with_traffic_light.bag
-```
-4. Launch your project in site mode
-```bash
-cd CarND-Capstone/ros
-roslaunch launch/site.launch
-```
-5. Confirm that traffic light detection works on real life images
+We blur  (GaussianBlur) the image and trasform it to HSV color space
+
+![Example 2][image2]
+
+Now we create a mask (in this case yellow color ranges) and transform the image to clean filtered shapes and reducing the possible small noises found in the image.
+
+[For more info: Cv2: Morphological Transformations](https://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html)).
+
+![Example 3][image3]
+
+Then we count the number of objects, if it's more than 1 then we have found a positive match.
+We do this for the green and yellow/red colors.
+
+### Waypoint Updater
+
+In this node we get the waypoints location, status of traffic lights and vehicle location.  Based on this data we update the desired velocities for each of the waypoints.
+
+This velocities will be defined based in if we find a red/yellow traffic light in front or not.  In case we do it then we smoothly decrease the speed of next waypoints until full stop.
+
+### Control - DBW Node.
+
+Here we adjust the vehicle's controls (throttle, steering and brakes).  We have 2 controllers for this.
+- Yaw Controller: It provides the steering commands based on target linear and angular velocity (default)
+- Twist Controller: 
+    - If we need to reduce velocity (negative velocity error), we just set throttle to zero and brake proportional to error.
+    - If we need to aument velocity we use the default PID controller provided.
+
+
+## Usage (in the simulator)
+
+Install all needed software and dependencies as defined by Udacity and download this repository.
+
+- Start simulator
+- Start ROS environment
+  ```bash
+    - cd ros
+    - catkin_make
+    - source devel/setup.sh
+    - roslaunch launch/styx.launch
+  ```
+
