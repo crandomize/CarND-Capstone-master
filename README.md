@@ -23,6 +23,7 @@ Below is an example to detect one of the colors (yellow color)
 [image3]: ./imgs/traffic_light_detection.png "Image"
 
 This is the original frame imageobtained from the camera
+
 ![Example 1][image1]
 
 We blur  (GaussianBlur) the image and trasform it to HSV color space
